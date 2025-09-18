@@ -1,6 +1,7 @@
+// src/components/ChatWindow.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Smile, Paperclip, Reply } from "lucide-react";
+import { Send, Mic, Smile, Reply } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 
 const ChatWindow = ({ selectedChat, onSendMessage, onBack, className = "" }) => {
@@ -10,7 +11,9 @@ const ChatWindow = ({ selectedChat, onSendMessage, onBack, className = "" }) => 
   const [replyingTo, setReplyingTo] = useState(null);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
+  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [selectedChat?.messages]);
@@ -23,12 +26,43 @@ const ChatWindow = ({ selectedChat, onSendMessage, onBack, className = "" }) => 
     }
   }, [message]);
 
+  // Handle sending messages
   const handleSendMessage = () => {
     if (!message.trim() || !selectedChat) return;
     const text = replyingTo ? `↪️ ${replyingTo.text}\n${message}` : message;
     onSendMessage(selectedChat.id, text);
     setMessage("");
     setReplyingTo(null);
+    setShowEmoji(false);
+    setIsTyping(false);
+  };
+
+  // Handle emoji selection
+  const handleEmojiClick = (emojiData) => {
+    setMessage((prev) => prev + emojiData.emoji);
+    textareaRef.current.focus();
+  };
+
+  // Handle Enter key to send
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  // Typing indicator logic
+  const handleInputChange = (e) => {
+    setMessage(e.target.value);
+    setIsTyping(true);
+
+    // Clear previous timeout
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+    // Disable typing indicator after 1 second of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+    }, 1000);
   };
 
   if (!selectedChat) {
@@ -42,7 +76,7 @@ const ChatWindow = ({ selectedChat, onSendMessage, onBack, className = "" }) => 
   }
 
   return (
-    <motion.div className={`h-full glass-surface flex flex-col ${className}`}>
+    <motion.div className={`h-full flex flex-col glass-surface ${className}`}>
       {/* Header */}
       <div className="p-4 border-b border-glass-border/30 flex justify-between items-center">
         {onBack && (
@@ -54,30 +88,31 @@ const ChatWindow = ({ selectedChat, onSendMessage, onBack, className = "" }) => 
           </button>
         )}
         <h3 className="font-semibold">{selectedChat.name}</h3>
+        {selectedChat.isOnline && (
+          <span className="text-xs text-whatsapp-green">● Online</span>
+        )}
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar relative">
         {selectedChat.messages.map((msg, idx) => (
           <div
             key={msg.id}
-            className={`group relative ${
-              msg.sender === "me" ? "text-right" : "text-left"
-            }`}
+            className={`group relative ${msg.sender === "me" ? "text-right" : "text-left"}`}
           >
             <motion.div
               whileHover={{ scale: 1.02 }}
-              className={`inline-block px-3 py-2 rounded-xl shadow-sm ${
+              className={`inline-block px-3 py-2 rounded-2xl shadow-sm max-w-xs break-words ${
                 msg.sender === "me"
-                  ? "bg-primary text-white"
-                  : "bg-gray-200 text-black"
+                  ? "ml-auto bg-gradient-to-br from-primary to-primary-glow text-white rounded-br-none"
+                  : "mr-auto bg-gradient-to-br from-glass-tertiary/80 to-glass-secondary/60 text-foreground rounded-bl-none"
               }`}
-              title={`Sent at ${msg.time}`}
+              title={`Sent at ${msg.time || ""}`}
             >
               {msg.text}
             </motion.div>
 
-            {/* Reply button on hover */}
+            {/* Reply button */}
             <button
               onClick={() => setReplyingTo(msg)}
               className="absolute top-1/2 -translate-y-1/2 -right-8 opacity-0 group-hover:opacity-100 transition"
@@ -85,7 +120,7 @@ const ChatWindow = ({ selectedChat, onSendMessage, onBack, className = "" }) => 
               <Reply className="w-4 h-4 text-gray-500" />
             </button>
 
-            {/* Seen Indicator */}
+            {/* Seen indicator */}
             {idx === selectedChat.messages.length - 1 &&
               msg.sender === "me" &&
               msg.status === "read" && (
@@ -94,18 +129,27 @@ const ChatWindow = ({ selectedChat, onSendMessage, onBack, className = "" }) => 
           </div>
         ))}
 
+        {/* Typing indicator */}
         <AnimatePresence>
           {isTyping && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-gray-400 italic"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="mr-auto px-3 py-2 rounded-2xl bg-glass-secondary/50 flex gap-1"
             >
-              {selectedChat.name} is typing...
+              {[0, 0.2, 0.4].map((delay, i) => (
+                <motion.span
+                  key={i}
+                  className="w-2 h-2 bg-foreground rounded-full"
+                  animate={{ y: [0, -4, 0] }}
+                  transition={{ repeat: Infinity, duration: 0.6, delay }}
+                />
+              ))}
             </motion.div>
           )}
         </AnimatePresence>
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -124,34 +168,49 @@ const ChatWindow = ({ selectedChat, onSendMessage, onBack, className = "" }) => 
         )}
       </AnimatePresence>
 
-      {/* Input */}
+      {/* Input Bar */}
       <div className="p-4 border-t border-glass-border/30 flex items-end gap-2 relative">
         {/* Emoji Toggle */}
         <button onClick={() => setShowEmoji(!showEmoji)}>
           <Smile className="w-5 h-5 text-gray-500" />
         </button>
 
-        {showEmoji && (
-          <div className="absolute bottom-16 left-4 z-50">
-            <EmojiPicker
-              onEmojiClick={(emoji) =>
-                setMessage((prev) => prev + emoji.emoji)
-              }
-            />
-          </div>
-        )}
+        {/* Emoji Picker */}
+        <AnimatePresence>
+          {showEmoji && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="absolute bottom-16 left-4 z-50"
+            >
+              <EmojiPicker onEmojiClick={handleEmojiClick} />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Textarea */}
         <textarea
           ref={textareaRef}
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           placeholder="Type a message..."
           rows={1}
           className="flex-1 p-2 rounded border text-black placeholder-gray-500 resize-none focus:outline-none"
         />
 
-        {/* Send Button */}
+        {/* Voice / Mic */}
+        <div className="relative p-2 hover:scale-110 transition">
+          <Mic className="w-5 h-5 text-gray-500" />
+          <motion.div
+            animate={{ scale: [1, 1.3, 1] }}
+            transition={{ repeat: Infinity, duration: 1.5 }}
+            className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full"
+          />
+        </div>
+
+        {/* Send */}
         <motion.button
           whileTap={{ scale: 0.8, rotate: -10 }}
           onClick={handleSendMessage}

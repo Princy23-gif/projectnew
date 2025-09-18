@@ -1,81 +1,87 @@
-import React from "react";
+// src/components/Header.jsx
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Search, Sun, Moon, Menu } from "lucide-react";
 
-export default function Header({
-  searchQuery,
-  setSearchQuery,
-  isDarkMode,
-  toggleDarkMode,
-  isMobileMenuOpen,
-  setIsMobileMenuOpen,
-}) {
+const Header = ({ 
+  searchQuery, 
+  setSearchQuery, 
+  isDarkMode, 
+  toggleDarkMode, 
+  toggleMobileView 
+}) => {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <motion.header
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="sticky top-0 z-50 h-16 flex items-center justify-between px-6 
-                 bg-white/70 dark:bg-gray-900/70 backdrop-blur-md border-b 
-                 border-gray-200 dark:border-gray-700 shadow-sm"
+      transition={{ delay: 0.1 }}
+      className="glass-effect border-b border-glass-border flex items-center justify-between px-6 py-3"
     >
-      {/* Mobile Menu Toggle */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+      {/* Branding / Logo */}
+      <div className="flex items-center gap-3">
+        <motion.div 
+          className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary-glow 
+                     flex items-center justify-center text-white font-bold shadow-lg animate-pulse-glow"
         >
-          <Menu className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-        </button>
-
-        {/* Logo and Title */}
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
-            <span className="text-white text-sm font-bold">B</span>
-          </div>
-          <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
-            Business Inbox
-          </h1>
-        </div>
+          B
+        </motion.div>
+        <h1 className="font-semibold text-lg bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+          BizChat Inbox
+        </h1>
       </div>
 
-      {/* Search Bar */}
-      <div className="flex-1 max-w-md mx-6 hidden md:block">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search conversations..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-lg 
-                       bg-gray-50 dark:bg-gray-800 
-                       border border-gray-200 dark:border-gray-700
-                       placeholder-gray-400 dark:placeholder-gray-500
-                       text-gray-900 dark:text-gray-100
-                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-                       transition-all duration-200"
-          />
-        </div>
-      </div>
-
-      {/* Theme Toggle */}
-      <button
-        onClick={toggleDarkMode}
-        className="p-2 rounded-lg border border-gray-200 dark:border-gray-700 
-                   hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+      {/* Search bar */}
+      <motion.div 
+        whileFocus={{ scale: 1.02 }}
+        className="flex items-center bg-glass-secondary/50 px-3 py-2 rounded-lg 
+                   focus-within:ring-2 focus-within:ring-primary transition-all duration-300 w-72"
       >
-        <motion.div
-          initial={false}
-          animate={{ rotate: isDarkMode ? 180 : 0 }}
-          transition={{ duration: 0.3 }}
+        <Search className="w-4 h-4 text-muted-foreground mr-2" />
+        <input
+          type="text"
+          placeholder="Search conversations..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="bg-transparent outline-none flex-1 text-sm text-foreground placeholder:text-muted-foreground"
+        />
+      </motion.div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-4">
+        {/* Live clock */}
+        <div className="text-sm text-muted-foreground hidden md:block">
+          {time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+        </div>
+
+        {/* Dark mode toggle */}
+        <button 
+          onClick={toggleDarkMode}
+          className="w-9 h-9 flex items-center justify-center rounded-full bg-glass-secondary/50 hover:bg-glass-tertiary transition"
         >
           {isDarkMode ? (
             <Sun className="w-5 h-5 text-yellow-400" />
           ) : (
-            <Moon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+            <Moon className="w-5 h-5 text-indigo-500" />
           )}
-        </motion.div>
-      </button>
+        </button>
+
+        {/* Mobile view toggle */}
+        <button 
+          onClick={toggleMobileView}
+          className="md:hidden w-9 h-9 flex items-center justify-center rounded-full bg-glass-secondary/50 hover:bg-glass-tertiary transition"
+        >
+          <Menu className="w-5 h-5 text-primary" />
+        </button>
+      </div>
     </motion.header>
   );
-}
+};
+
+export default Header;
